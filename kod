@@ -1,0 +1,701 @@
+#include <stdlib.h>
+#include <time.h>
+#include <stdbool.h>
+#include "primlib.h"
+
+
+#define GAME_HEIGHT 30
+#define GAME_WIDTH 10
+#define TOP_LEFT_X (gfx_screenWidth() / 2 - GAME_WIDTH / 2 * SQUARE_SIZE )
+#define TOP_LEFT_Y (gfx_screenHeight() - GAME_HEIGHT * SQUARE_SIZE )
+#define SQUARE_SIZE ((gfx_screenHeight() - 2 * 10) / GAME_HEIGHT)
+#define NEXT_PIECE_GAP 20
+#define POSSIBLE_PIECES 7
+#define POSSIBLE_ROTATIONS 4
+#define TICKRATE 20
+#define FPSRATE 60
+#define PIECELENGTH 4
+#define DOWN 1
+#define LEFT 2
+#define RIGHT 3
+#define PIVOT 2
+#define BLOCKCOLOR GREEN
+#define PIVOTCOLOR YELLOW
+#define BACKGROUNDCOLOR BLACK
+#define AREACOLOR RED
+
+char pieces[7 /*kind */ ][4 /* rotation */ ][4][4] =
+{
+/* square */
+  {
+   {
+    {2, 1, 0, 0},
+    {1, 1, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {2, 1, 0, 0},
+    {1, 1, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {2, 1, 0, 0},
+    {1, 1, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {2, 1, 0, 0},
+    {1, 1, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    }
+   },
+/* I */
+
+  {
+   {
+    {1, 2, 1, 1},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 0, 0, 0},
+    {2, 0, 0, 0},
+    {1, 0, 0, 0},
+    {1, 0, 0, 0}
+    },
+   {
+    {1, 1, 2, 1},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 0, 0, 0},
+    {1, 0, 0, 0},
+    {2, 0, 0, 0},
+    {1, 0, 0, 0}
+    }
+   }
+  ,
+/* L */
+  {
+   {
+    {1, 0, 0, 0},
+    {2, 0, 0, 0},
+    {1, 1, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 2, 1, 0},
+    {1, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 1, 0, 0},
+    {0, 2, 0, 0},
+    {0, 1, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {0, 0, 1, 0},
+    {1, 2, 1, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    }
+   },
+/* L mirrored */
+  {
+   {
+    {0, 1, 0, 0},
+    {0, 2, 0, 0},
+    {1, 1, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 0, 0, 0},
+    {1, 2, 1, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 1, 0, 0},
+    {2, 0, 0, 0},
+    {1, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 2, 1, 0},
+    {0, 0, 1, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    }
+   },
+/* N */
+  {
+   {
+    {0, 1, 0, 0},
+    {2, 1, 0, 0},
+    {1, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 2, 0, 0},
+    {0, 1, 1, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {0, 1, 0, 0},
+    {1, 2, 0, 0},
+    {1, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 1, 0, 0},
+    {0, 2, 1, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    }
+   },
+/* N mirrored */
+  {
+   {
+    {1, 0, 0, 0},
+    {2, 1, 0, 0},
+    {0, 1, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {0, 2, 1, 0},
+    {1, 1, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 0, 0, 0},
+    {1, 2, 0, 0},
+    {0, 1, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {0, 1, 1, 0},
+    {1, 2, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    }
+   },
+/* T */
+  {
+   {
+    {1, 0, 0, 0},
+    {2, 1, 0, 0},
+    {1, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {1, 2, 1, 0},
+    {0, 1, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {0, 1, 0, 0},
+    {1, 2, 0, 0},
+    {0, 1, 0, 0},
+    {0, 0, 0, 0}
+    },
+   {
+    {0, 1, 0, 0},
+    {1, 2, 1, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+    }
+   }
+};
+
+int area[GAME_HEIGHT][GAME_WIDTH],
+    piecearea[GAME_HEIGHT][GAME_WIDTH],
+    piece_shape,
+    piece_variant,
+    piece_color,
+    tick_manager;
+bool newpieceonscreen = false,
+     piece_collision = false,
+     piece_collision_left = false,
+     piece_collision_right = false;
+     
+int nextPieceIndex;
+int nextPieceRotation;
+
+
+void drawNextPiece();
+void cleanScreen();
+void keyDetect();
+void drawarea();
+int randomInt(int range_start, int range_end);
+void pickNewPiece();
+void movePiece(int direction);
+void drawBlocks(int array[GAME_HEIGHT][GAME_WIDTH]);
+void embedBlock();
+void checkGameOver();
+void fallingPieces();
+void dropThePiece();
+void checkCleanRow();
+void CleanRow(int height);
+void checkHorizontalCollision();
+void rotatePiece();
+void checkVerticalCollision();
+int getPieceWidth(int direction);
+void ExecuteSpaceKey();
+void ExecuteKeyDOWN();
+bool checkRotation();
+
+int main(int argc, char* argv[]) {
+    if(gfx_init())
+        exit(3);
+       srand(time(NULL));
+       piece_shape = (int)rand() % POSSIBLE_PIECES;
+       piece_variant = (int)rand() % POSSIBLE_ROTATIONS;
+       nextPieceIndex = (int)rand() % POSSIBLE_PIECES;
+       nextPieceRotation = (int)rand() % POSSIBLE_ROTATIONS;
+       
+    while(true) {
+        checkHorizontalCollision();
+        pickNewPiece();
+        cleanScreen();
+        drawarea();
+        drawBlocks(area);
+        drawBlocks(piecearea);
+        drawNextPiece();
+        keyDetect();
+        gfx_updateScreen();
+        checkCleanRow();
+        checkGameOver();
+        fallingPieces();
+        SDL_Delay(1000 / FPSRATE);
+    }
+    return 0;
+}
+
+void cleanScreen() {
+	gfx_filledRect(0, 0, gfx_screenWidth(), gfx_screenHeight(), BACKGROUNDCOLOR);
+}
+
+void keyDetect() {
+    int key = gfx_pollkey();
+    checkVerticalCollision();
+    checkHorizontalCollision();
+    if (key == SDLK_SPACE && !piece_collision)
+        ExecuteSpaceKey();
+    else if (key == SDLK_DOWN && !piece_collision)
+        dropThePiece();
+    else if (key == SDLK_LEFT && !piece_collision)
+        movePiece(LEFT);
+    else if (key == SDLK_RIGHT && !piece_collision)
+        movePiece(RIGHT);
+    else if (key == SDLK_ESCAPE)
+        exit(1);
+}
+
+void drawarea() {
+    const int OFFSET = 10, DISPLACEMENT = 2;
+    int y1cord = OFFSET,
+        y2cord = gfx_screenHeight() - OFFSET,
+        blockwidth = (y2cord - y1cord) / GAME_HEIGHT,
+        x1cord = (gfx_screenWidth() - blockwidth * GAME_WIDTH) / 2,
+        x2cord = gfx_screenWidth() - x1cord;
+    gfx_line(x1cord - DISPLACEMENT, y1cord - DISPLACEMENT, x2cord + DISPLACEMENT, y1cord - DISPLACEMENT, AREACOLOR); //TOP
+    gfx_line(x1cord - DISPLACEMENT, y2cord + DISPLACEMENT, x2cord + DISPLACEMENT, y2cord + DISPLACEMENT, AREACOLOR); //BOTTOM
+    gfx_line(x1cord - DISPLACEMENT, y1cord - DISPLACEMENT, x1cord - DISPLACEMENT, y2cord + DISPLACEMENT, AREACOLOR); //LEFT
+    gfx_line(x2cord + DISPLACEMENT, y1cord - DISPLACEMENT, x2cord + DISPLACEMENT, y2cord + DISPLACEMENT, AREACOLOR); //RIGHT
+}
+
+void pickNewPiece() {
+    int const SPAWNING_POSITION = GAME_WIDTH / 2 - 1;
+    if (newpieceonscreen == false) {
+		piece_shape = nextPieceIndex;
+        piece_variant = nextPieceRotation;
+        nextPieceIndex = (int)rand() % POSSIBLE_PIECES;
+	    nextPieceRotation = (int)rand() % POSSIBLE_ROTATIONS;
+        piece_color = GREEN;
+        piece_collision = false;
+        piece_collision_left = false;
+        piece_collision_right = false;
+        for (int i = 0; i < PIECELENGTH; i++) {
+            for (int j = 0; j < PIECELENGTH; j++) {
+                if (pieces[piece_shape][piece_variant][i][j] == 1)
+                    piecearea[GAME_HEIGHT - i - 1][j + SPAWNING_POSITION] = piece_color;
+                else if (pieces[piece_shape][piece_variant][i][j] == 2)
+                    piecearea[GAME_HEIGHT - i - 1][j + SPAWNING_POSITION] = PIVOTCOLOR;
+            }
+        }
+        newpieceonscreen = true;
+    }
+}
+
+void drawNextPiece() {
+	for (int i = 0; i < PIECELENGTH; i++) {
+		for (int j = 0; j < PIECELENGTH; j++) {
+			if (pieces[nextPieceIndex][nextPieceRotation][i][j] != 0) {
+				int x1 = TOP_LEFT_X + SQUARE_SIZE * GAME_WIDTH +
+						 NEXT_PIECE_GAP + j * SQUARE_SIZE;
+				int y1 = TOP_LEFT_Y + i * SQUARE_SIZE;
+				int x2 = x1 + SQUARE_SIZE;
+				int y2 = y1 + SQUARE_SIZE;
+				if (pieces[nextPieceIndex][nextPieceRotation][i][j] == 2) {
+					gfx_filledRect(x1 + 2, y1 + 2, x2 - 2, y2 - 2, YELLOW);
+				} else {
+					gfx_filledRect(x1 + 2, y1 + 2, x2 - 2, y2 - 2, GREEN);
+				}
+			}
+		}
+	}
+}
+
+
+void movePiece(int direction) {
+    if (direction == DOWN) {
+        checkVerticalCollision();
+        if (piece_collision == false) {
+            for (int i = 1; i < GAME_HEIGHT; i++) {
+                for (int j = 0; j < GAME_WIDTH; j++) {
+                    piecearea[i - 1][j] = piecearea[i][j];
+                    piecearea[i][j] = 0;
+                }
+            }
+        } else if (piece_collision == true) {
+            embedBlock();
+            newpieceonscreen = false;
+        }
+    } else if (direction == LEFT && !piece_collision_left) {
+        for (int i = 0; i < GAME_WIDTH; i++) {
+            for (int j = 0; j < GAME_HEIGHT; j++) {
+                if (piecearea[j][i]) {
+                    piecearea[j][i - 1] = piecearea[j][i];
+                    piecearea[j][i] = 0;
+                }
+            }
+        }
+    } else if (direction == RIGHT && !piece_collision_right) {
+        for (int i = GAME_WIDTH - 1; i >= 0; i--) {
+            for (int j = GAME_HEIGHT - 1; j >= 0; j--) {
+                if (piecearea[j][i]) {
+                    piecearea[j][i + 1] = piecearea[j][i];
+                    piecearea[j][i] = 0;
+                }
+            }
+        }
+    }
+}
+
+void drawBlocks(int array[GAME_HEIGHT][GAME_WIDTH]) {
+    const int OFFSET = 10,
+              BLOCKWIDTH = (gfx_screenHeight() - 2 * OFFSET) / GAME_HEIGHT,
+              ADDITIONALSPACE = 2;
+    int x_base = (gfx_screenWidth() - BLOCKWIDTH * GAME_WIDTH) / 2,
+        y_base = gfx_screenHeight() - OFFSET,
+        x_cord,
+        y_cord = y_base;
+    for (int i = 0; i < GAME_HEIGHT; i++) {
+        x_cord = x_base;
+        for (int j = 0; j < GAME_WIDTH; j++) {
+            if (array[i][j]) {
+                gfx_filledRect(x_cord + ADDITIONALSPACE,
+                           y_cord - ADDITIONALSPACE,
+                           x_cord + BLOCKWIDTH - ADDITIONALSPACE,
+                           y_cord - BLOCKWIDTH + ADDITIONALSPACE,
+                           array[i][j]);
+            }
+            x_cord += BLOCKWIDTH;
+        }
+        y_cord -= BLOCKWIDTH;
+    }
+}
+
+void embedBlock() {
+    for (int i = 0; i < GAME_HEIGHT; i++) {
+        for (int j = 0; j < GAME_WIDTH; j++) {
+            if (piecearea[i][j]) {
+                area[i][j] = RED;
+                piecearea[i][j] = 0;
+            }
+        }
+    }
+}
+
+void checkGameOver() {
+    const int DELAY = 2000,
+              XPOSITION = gfx_screenWidth() / 2 - 20,
+              YPOSITION = gfx_screenHeight() / 2;
+    for (int i = 0; i < GAME_WIDTH; i++) {
+        if (area[GAME_HEIGHT - 1][i] != 0) {
+            gfx_textout(XPOSITION, YPOSITION, "GAME OVER!", WHITE);
+            gfx_updateScreen();
+            SDL_Delay(DELAY);
+            exit(1);
+        }
+    }
+}
+
+
+void fallingPieces() {
+    if (tick_manager == TICKRATE) {
+        movePiece(DOWN);
+        tick_manager = 0;
+    }
+    tick_manager++;
+}
+
+void dropThePiece() {
+    while (piece_collision == false)
+        movePiece(DOWN);
+}
+
+void checkCleanRow() {
+    const int delay = 300;
+    for (int i = 0; i < GAME_HEIGHT; i++) {
+        for (int j = 0; j < GAME_WIDTH; j++) {
+            if (!area[i][j])
+                break;
+            if (j == GAME_WIDTH - 1 && area[i][j]) {
+                cleanScreen();
+                drawarea();
+                drawBlocks(area);
+                drawBlocks(piecearea);
+                gfx_updateScreen();
+                SDL_Delay(delay);
+                CleanRow(i);
+            }
+        }
+    }
+}
+
+void CleanRow(int height) {
+    for (int i = height; i < GAME_HEIGHT - 1; i++)
+        for (int j = 0; j < GAME_WIDTH; j++)
+            area[i][j] = area[i + 1][j];
+}
+
+void checkHorizontalCollision() {
+    //Checks if collisions in horizontal axis occur
+    //LEFT
+    for (int i = 0; i < GAME_HEIGHT; i++) {
+        for (int j = 0; j < GAME_WIDTH; j++) {
+            if (piecearea[i][j] && j >= 1 && area[i][j - 1]) {
+                piece_collision_left = true;
+                i = GAME_HEIGHT;
+                j = GAME_WIDTH;
+            } else if (piecearea[i][j] && j == 0) {
+                piece_collision_left = true;
+                i = GAME_HEIGHT;
+                j = GAME_WIDTH;
+            }
+            else if (piecearea[i][j] && j && !area[i][j - 1])
+                piece_collision_left = false;
+        }
+    }
+    //RIGHT
+    for (int i = 0; i < GAME_HEIGHT; i++) {
+        for (int j = GAME_WIDTH - 1; j >= 0; j--) {
+            if (piecearea[i][j] && j < GAME_WIDTH - 1 && area[i][j + 1]) {
+                piece_collision_right = true;
+                i = GAME_HEIGHT;
+                j = -1;
+            } else if (piecearea[i][j] && j == GAME_WIDTH - 1) {
+                piece_collision_right = true;
+                i = GAME_HEIGHT;
+                j = -1;
+            }
+            else if (piecearea[i][j] && j >= 0 && !area[i][j + 1])
+                piece_collision_right = false;
+        }
+    }
+}
+
+void rotatePiece() {
+    //Creates an illusion of rotating piece
+    //locating the pivot before the rotation
+    int ycord, xcord;
+    for (int i = 0; i < GAME_HEIGHT; i++) {
+        for (int j = 0; j < GAME_WIDTH; j++) {
+            if (piecearea[i][j] == PIVOTCOLOR) {
+                ycord = i;
+                xcord = j;
+                i = GAME_HEIGHT;
+                j = GAME_WIDTH;
+            }
+        }
+    }
+    //locating the new pivot in the already rotated piece
+    int centerpieceX, centerpieceY;
+    for (int k = 0; k < PIECELENGTH; k++) {
+        for (int l = 0; l < PIECELENGTH; l++) {
+            if (pieces[piece_shape][piece_variant][k][l] == PIVOT) {
+                centerpieceY = k;
+                centerpieceX = l;
+                k = PIECELENGTH;
+                l = PIECELENGTH;
+            }
+        }
+    }
+    //cleaning the piecearea for the rotated piece
+    for (int k = 0; k < GAME_HEIGHT; k++)
+        for (int l = 0; l < GAME_WIDTH; l++)
+            piecearea[k][l] = 0;
+    piecearea[ycord][xcord] = PIVOTCOLOR; //making the pivot stay in the piecearea
+    //FOUR STAGE REDRAWING PROCESS
+    //Bottom-right
+    for (int i = 0; i < PIECELENGTH - centerpieceY; i++)
+        for (int j = 0; j < PIECELENGTH - centerpieceX; j++)
+            if ((i != 0 || j != 0) && pieces[piece_shape][piece_variant][centerpieceY + i][centerpieceX + j] && !piecearea[ycord - i][xcord + j])
+                    piecearea[ycord - i][xcord + j] = piece_color;
+    //Bottom-left
+    for (int i = 0; i < PIECELENGTH - centerpieceY; i++)
+        for (int j = 0; j < centerpieceX + 1; j++)
+            if ((i != 0 || j != 0) && pieces[piece_shape][piece_variant][centerpieceY + i][centerpieceX - j] && !piecearea[ycord - i][xcord - j])
+                piecearea[ycord - i][xcord - j] = piece_color;
+    //Top-right
+    for (int i = 0; i < centerpieceY + 1; i++)
+        for (int j = 0; j < PIECELENGTH - centerpieceX; j++)
+            if ((i != 0 || j != 0) && pieces[piece_shape][piece_variant][centerpieceY - i][centerpieceX + j] && !piecearea[ycord + i][xcord + j])
+                piecearea[ycord + i][xcord + j] = piece_color;
+    //Top-left
+    for (int i = 0; i < centerpieceY + 1; i++)
+        for (int j = 0; j < centerpieceX + 1; j++)
+            if ((i != 0 || j != 0) && pieces[piece_shape][piece_variant][centerpieceY - i][centerpieceX - j] && !piecearea[ycord + i][xcord - j])
+                piecearea[ycord + i][xcord - j] = piece_color;
+}
+
+void checkVerticalCollision() {
+    //Checks if vertical collisions occur
+    for (int i = 0; i < GAME_HEIGHT; i++)
+        for (int j = 0; j < GAME_WIDTH; j++)
+            if ((i && piecearea[i][j] && area[i - 1][j]) || (piecearea[i][j] && i == 0))
+                piece_collision = true;
+}
+
+int getPieceWidth(int direction) {
+    int piecewidth = 0;
+    bool colchecked;
+    if (direction == LEFT) {
+        for (int j = 0; j < PIECELENGTH; j++) {
+            colchecked = false;
+            for (int i = 0; i < PIECELENGTH; i++) {
+                if (!colchecked && pieces[piece_shape][piece_variant][i][j]) {
+                    piecewidth++;
+                    colchecked = true;
+                }
+                if (pieces[piece_shape][piece_variant][i][j] == 2) {
+                    i = PIECELENGTH;
+                    j = PIECELENGTH;
+                }
+            }
+        }
+    } else if (direction == RIGHT) {
+        for (int j = PIECELENGTH - 1; j >= 0; j--) {
+            colchecked = false;
+            for (int i = PIECELENGTH - 1; i >= 0; i--) {
+                if (!colchecked && pieces[piece_shape][piece_variant][i][j]) {
+                    piecewidth++;
+                    colchecked = true;
+                }
+                if (pieces[piece_shape][piece_variant][i][j] == 2) {
+                    i = -1;
+                    j = -1;
+                }
+            }
+        }
+    }
+    return piecewidth - 1;
+}
+
+void ExecuteSpaceKey() {
+    int oldwidthleft = getPieceWidth(LEFT),
+        oldwidthright = getPieceWidth(RIGHT),
+        oldvariant;
+    if (piece_variant == 0) {
+        oldvariant = piece_variant;
+        piece_variant = PIECELENGTH - 1;
+    }
+    else {
+        oldvariant = piece_variant;
+        piece_variant--;
+    }
+    if (piece_collision_left && (oldwidthleft >= getPieceWidth(LEFT)) && checkRotation())
+        rotatePiece();
+    else if (piece_collision_right && (oldwidthright >= getPieceWidth(RIGHT)) && checkRotation())
+        rotatePiece();
+    else if (!piece_collision_right && !piece_collision_left) {
+        //locating the pivot
+        int ycord, xcord;
+        for (int i = 0; i < GAME_HEIGHT; i++) {
+            for (int j = 0; j < GAME_WIDTH; j++) {
+                if (piecearea[i][j] == PIVOTCOLOR) {
+                    ycord = i;
+                    xcord = j;
+                    i = GAME_HEIGHT;
+                    j = GAME_WIDTH;
+                }
+            }
+        }
+        if (!area[ycord][xcord - getPieceWidth(LEFT)] &&
+            !area[ycord][xcord + getPieceWidth(RIGHT)] &&
+            xcord + getPieceWidth(RIGHT) <= GAME_WIDTH - 1 &&
+            xcord - getPieceWidth(LEFT) >= 0 &&
+            checkRotation())
+            rotatePiece();
+        else
+            piece_variant = oldvariant;
+    } else
+        piece_variant = oldvariant;
+}
+
+bool checkRotation() {
+    int ycord, xcord, centerpieceX, centerpieceY;
+    for (int i = 0; i < GAME_HEIGHT; i++) {
+        for (int j = 0; j < GAME_WIDTH; j++) {
+            if (piecearea[i][j] == PIVOTCOLOR) {
+                ycord = i;
+                xcord = j;
+                i = GAME_HEIGHT;
+                j = GAME_WIDTH;
+            }
+        }
+    }
+    for (int k = 0; k < PIECELENGTH; k++) {
+        for (int l = 0; l < PIECELENGTH; l++) {
+            if (pieces[piece_shape][piece_variant][k][l] == PIVOT) {
+                centerpieceY = k;
+                centerpieceX = l;
+                k = PIECELENGTH;
+                l = PIECELENGTH;
+            }
+        }
+    }
+    for (int i = 0; i < PIECELENGTH - centerpieceY; i++)
+        for (int j = 0; j < PIECELENGTH - centerpieceX; j++)
+            if (pieces[piece_shape][piece_variant][centerpieceY + i][centerpieceX + j] && area[ycord - i][xcord + j])
+                return false;
+    //Bottom-left
+    for (int i = 0; i < PIECELENGTH - centerpieceY; i++)
+        for (int j = 0; j < centerpieceX + 1; j++)
+            if (pieces[piece_shape][piece_variant][centerpieceY + i][centerpieceX - j] && area[ycord - i][xcord - j])
+                return false;
+    //Top-right
+    for (int i = 0; i < centerpieceY + 1; i++)
+        for (int j = 0; j < PIECELENGTH - centerpieceX; j++)
+            if (pieces[piece_shape][piece_variant][centerpieceY - i][centerpieceX + j] && area[ycord + i][xcord + j])
+                return false;
+    //Top-left
+    for (int i = 0; i < centerpieceY + 1; i++)
+        for (int j = 0; j < centerpieceX + 1; j++)
+            if (pieces[piece_shape][piece_variant][centerpieceY - i][centerpieceX - j] && area[ycord + i][xcord - j])
+                return false;
+    return true;
+}
